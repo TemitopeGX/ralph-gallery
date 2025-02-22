@@ -1,24 +1,56 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import cloudinary from "@/lib/cloudinary";
 import { adminAuth } from "@/lib/firebase-admin";
-import { ObjectId } from "mongodb";
+import clientPromise from "@/lib/mongodb";
+import cloudinary from "@/lib/cloudinary";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 export async function GET(request: Request) {
+  console.log("API route called: /api/projects");
+
   const headers = {
     "Content-Type": "application/json",
   };
 
   try {
-    // Basic validation
-    if (!request.headers.get("Authorization")) {
+    // Test Firebase Admin initialization
+    try {
+      console.log("Testing Firebase Admin...");
+      const auth = adminAuth;
+      if (!auth) throw new Error("Firebase Admin not initialized");
+    } catch (error) {
+      console.error("Firebase Admin error:", error);
+      return NextResponse.json(
+        { error: "Firebase Admin initialization failed" },
+        { status: 500, headers }
+      );
+    }
+
+    // Test MongoDB connection
+    let db;
+    try {
+      console.log("Testing MongoDB connection...");
+      db = await getDb();
+      if (!db) throw new Error("Database connection failed");
+    } catch (error) {
+      console.error("MongoDB error:", error);
+      return NextResponse.json(
+        { error: "Database connection failed" },
+        { status: 500, headers }
+      );
+    }
+
+    // Verify auth token
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
       return NextResponse.json(
         { error: "No authorization header" },
         { status: 401, headers }
       );
     }
 
-    const token = request.headers.get("Authorization")?.split("Bearer ")[1];
+    const token = authHeader.split("Bearer ")[1];
     if (!token) {
       return NextResponse.json(
         { error: "Invalid authorization header" },
@@ -26,33 +58,13 @@ export async function GET(request: Request) {
       );
     }
 
-    // Verify Firebase token
     try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      console.log("Token verified for user:", decodedToken.uid);
+      await adminAuth.verifyIdToken(token);
     } catch (error) {
       console.error("Token verification failed:", error);
       return NextResponse.json(
-        {
-          error: "Invalid token",
-          details: error instanceof Error ? error.message : "Unknown error",
-        },
+        { error: "Invalid token" },
         { status: 401, headers }
-      );
-    }
-
-    // Get database connection
-    let db;
-    try {
-      db = await getDb();
-    } catch (error) {
-      console.error("Database connection failed:", error);
-      return NextResponse.json(
-        {
-          error: "Database connection failed",
-          details: error instanceof Error ? error.message : "Unknown error",
-        },
-        { status: 500, headers }
       );
     }
 
@@ -64,33 +76,30 @@ export async function GET(request: Request) {
         .sort({ createdAt: -1 })
         .toArray();
 
-      // Transform MongoDB documents to plain objects
-      const transformedProjects = projects.map((project) => ({
-        ...project,
-        _id: project._id.toString(),
-      }));
-
-      return NextResponse.json({ projects: transformedProjects }, { headers });
+      return NextResponse.json(
+        { projects: projects.map((p) => ({ ...p, _id: p._id.toString() })) },
+        { status: 200, headers }
+      );
     } catch (error) {
       console.error("Error fetching projects:", error);
       return NextResponse.json(
-        {
-          error: "Error fetching projects",
-          details: error instanceof Error ? error.message : "Unknown error",
-        },
+        { error: "Error fetching projects" },
         { status: 500, headers }
       );
     }
   } catch (error) {
-    console.error("Unhandled API Error:", error);
+    console.error("Unhandled API error:", error);
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Internal server error" },
       { status: 500, headers }
     );
   }
+}
+
+// Add type for file
+interface CustomFile extends File {
+  type: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
 }
 
 export async function POST(request: Request) {
@@ -126,8 +135,8 @@ export async function POST(request: Request) {
     const category = formData.get("category") as string;
     const description = formData.get("description") as string;
     const type = formData.get("type") as "single" | "multiple";
-    const mainImageFile = formData.get("file") as Blob;
-    const additionalFiles = formData.getAll("additionalFiles");
+    const mainImageFile = formData.get("mainImage") as CustomFile;
+    const additionalFiles = formData.getAll("additionalImages") as CustomFile[];
 
     if (!title || !category || !type || !mainImageFile) {
       return NextResponse.json(
@@ -137,9 +146,8 @@ export async function POST(request: Request) {
     }
 
     // Upload main image
-    const mainImageData = await mainImageFile.arrayBuffer();
-    const mainImageBuffer = Buffer.from(mainImageData);
-    const mainImageBase64 = mainImageBuffer.toString("base64");
+    const mainImageBuffer = await mainImageFile.arrayBuffer();
+    const mainImageBase64 = Buffer.from(mainImageBuffer).toString("base64");
     const mainImageDataURI = `data:${mainImageFile.type};base64,${mainImageBase64}`;
 
     const mainUploadResponse = await cloudinary.uploader.upload(
@@ -151,7 +159,7 @@ export async function POST(request: Request) {
 
     // Upload additional images
     const additionalUploadPromises = additionalFiles
-      .filter((file): file is Blob => file instanceof Blob)
+      .filter((file): file is CustomFile => file instanceof File)
       .map(async (file) => {
         const buffer = await file.arrayBuffer();
         const base64 = Buffer.from(buffer).toString("base64");
@@ -175,20 +183,22 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
 
+    const images = [
+      thumbnailImage,
+      ...additionalUploadResponses.map((response: any) => ({
+        url: response.secure_url,
+        publicId: response.public_id,
+        createdAt: new Date().toISOString(),
+      })),
+    ];
+
     const project = {
       title,
       category,
       description,
       type,
       thumbnail: thumbnailImage,
-      images: [
-        thumbnailImage,
-        ...additionalUploadResponses.map((response) => ({
-          url: response.secure_url,
-          publicId: response.public_id,
-          createdAt: new Date().toISOString(),
-        })),
-      ],
+      images,
       createdAt: new Date().toISOString(),
       userId: decodedToken.uid,
     };
