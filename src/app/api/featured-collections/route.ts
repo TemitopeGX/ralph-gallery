@@ -2,6 +2,11 @@ import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import { Project } from "@/types";
 
+interface CloudinaryResponse {
+  secure_url: string;
+  public_id: string;
+}
+
 export async function GET() {
   try {
     const database = await clientPromise;

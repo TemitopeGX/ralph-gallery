@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { adminAuth } from "@/lib/firebase-admin";
-import clientPromise from "@/lib/mongodb";
 import cloudinary from "@/lib/cloudinary";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";

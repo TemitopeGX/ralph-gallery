@@ -20,7 +20,7 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-let clientPromise: Promise<MongoClient>;
+let client: MongoClient;
 
 if (process.env.NODE_ENV === "development") {
   if (!global._mongoClientPromise) {
@@ -37,16 +37,16 @@ if (process.env.NODE_ENV === "development") {
         throw err;
       });
   }
-  clientPromise = global._mongoClientPromise;
+  client = global._mongoClientPromise;
 } else {
   const client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+  client = client.connect();
 }
 
 export const getDb = async () => {
   try {
     console.log("Attempting to get database connection...");
-    const client = await clientPromise;
+    const client = await client;
     const db = client.db("photography-portfolio");
 
     // Test the connection
@@ -60,4 +60,4 @@ export const getDb = async () => {
   }
 };
 
-export default clientPromise;
+export default client;
