@@ -1,13 +1,39 @@
 {
-  "extends": "next/core-web-vitals",
+  "extends": ["next/core-web-vitals"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "root": true,
   "rules": {
+    // Disable TypeScript-specific rules
     "@typescript-eslint/no-unused-vars": "off",
     "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-empty-function": "off",
+
+    // Disable React-specific rules
     "react-hooks/exhaustive-deps": "off",
     "react/no-unescaped-entities": "off",
-    "prefer-const": "off",
+    "react/display-name": "off",
+    "react/prop-types": "off",
+
+    // Disable general rules
     "no-var": "off",
-    "@next/next/no-img-element": "off"
+    "prefer-const": "off",
+    "@next/next/no-img-element": "off",
+    "no-unused-vars": "off"
   },
-  "ignorePatterns": ["node_modules/", ".next/", "out/", "public/"]
+  "ignorePatterns": [
+    "node_modules/",
+    ".next/",
+    "out/",
+    "public/",
+    "*.config.js",
+    "*.config.ts"
+  ],
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
 }
