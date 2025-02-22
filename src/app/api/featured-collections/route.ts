@@ -1,10 +1,10 @@
-import { db } from "@/lib/db";
+import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import { Project } from "@/types";
 
 export async function GET() {
   try {
-    const database = await db;
+    const database = await clientPromise;
 
     if (!database) {
       throw new Error("Database connection not established");
