@@ -6,7 +6,8 @@
     "react-hooks/exhaustive-deps": "off",
     "react/no-unescaped-entities": "off",
     "prefer-const": "off",
-    "no-var": "off"
+    "no-var": "off",
+    "@next/next/no-img-element": "off"
   },
   "ignorePatterns": ["node_modules/", ".next/", "out/", "public/"]
 }
