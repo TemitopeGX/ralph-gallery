@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { adminAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase";
 import cloudinary from "@/lib/cloudinary";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
@@ -19,19 +19,6 @@ export async function GET(request: Request) {
   };
 
   try {
-    // Test Firebase Admin initialization
-    try {
-      console.log("Testing Firebase Admin...");
-      const auth = adminAuth;
-      if (!auth) throw new Error("Firebase Admin not initialized");
-    } catch (error) {
-      console.error("Firebase Admin error:", error);
-      return NextResponse.json(
-        { error: "Firebase Admin initialization failed" },
-        { status: 500, headers }
-      );
-    }
-
     // Test MongoDB connection
     let db;
     try {
@@ -63,31 +50,16 @@ export async function GET(request: Request) {
       );
     }
 
-    try {
-      await adminAuth.verifyIdToken(token);
-    } catch (error) {
-      console.error("Token verification failed:", error);
-      return NextResponse.json(
-        { error: "Invalid token" },
-        { status: 401, headers }
-      );
-    }
-
     // Fetch projects
     try {
-      const projects = (await db
+      const projects = await db
         .collection("projects")
         .find({})
         .sort({ createdAt: -1 })
-        .toArray()) as ProjectDocument[];
+        .toArray();
 
       return NextResponse.json(
-        {
-          projects: projects.map((p: ProjectDocument) => ({
-            ...p,
-            _id: p._id.toString(),
-          })),
-        },
+        { projects: projects.map((p) => ({ ...p, _id: p._id.toString() })) },
         { status: 200, headers }
       );
     } catch (error) {
@@ -132,7 +104,7 @@ export async function POST(request: Request) {
     const token = authHeader.split("Bearer ")[1];
     let decodedToken;
     try {
-      decodedToken = await adminAuth.verifyIdToken(token);
+      decodedToken = await auth.verifyIdToken(token);
     } catch (error) {
       return NextResponse.json(
         { error: "Invalid token" },

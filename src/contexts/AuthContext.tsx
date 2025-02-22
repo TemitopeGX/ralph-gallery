@@ -8,7 +8,6 @@ import {
   onAuthStateChanged,
   User,
 } from "firebase/auth";
-import { useRouter } from "next/navigation";
 
 interface AuthContextType {
   user: User | null;
@@ -27,11 +26,9 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("Auth state changed:", user?.email); // Debug log
       setUser(user);
       setLoading(false);
     });
@@ -41,22 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log("Attempting sign in...");
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      console.log("Sign in successful:", userCredential.user.email);
-
-      // Wait a bit for the auth state to update
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      if (userCredential.user) {
-        router.push("/admin");
-        router.refresh();
-      }
-    } catch (error: any) {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
       console.error("Sign in error:", error);
       throw error;
     }
@@ -65,9 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      router.push("/auth/signin");
-      router.refresh(); // Force a refresh of the page
-    } catch (error: any) {
+    } catch (error) {
       console.error("Sign out error:", error);
       throw error;
     }
