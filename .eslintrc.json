@@ -5,7 +5,8 @@
     "@typescript-eslint/no-explicit-any": "off",
     "react-hooks/exhaustive-deps": "off",
     "react/no-unescaped-entities": "off",
-    "prefer-const": "warn",
-    "no-var": "warn"
-  }
+    "prefer-const": "off",
+    "no-var": "off"
+  },
+  "ignorePatterns": ["node_modules/", ".next/", "out/", "public/"]
 }

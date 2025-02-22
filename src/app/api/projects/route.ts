@@ -5,6 +5,12 @@ import cloudinary from "@/lib/cloudinary";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
+// Add interface for MongoDB document
+interface ProjectDocument {
+  _id: string;
+  [key: string]: any;
+}
+
 export async function GET(request: Request) {
   console.log("API route called: /api/projects");
 
@@ -69,14 +75,19 @@ export async function GET(request: Request) {
 
     // Fetch projects
     try {
-      const projects = await db
+      const projects = (await db
         .collection("projects")
         .find({})
         .sort({ createdAt: -1 })
-        .toArray();
+        .toArray()) as ProjectDocument[];
 
       return NextResponse.json(
-        { projects: projects.map((p) => ({ ...p, _id: p._id.toString() })) },
+        {
+          projects: projects.map((p: ProjectDocument) => ({
+            ...p,
+            _id: p._id.toString(),
+          })),
+        },
         { status: 200, headers }
       );
     } catch (error) {
